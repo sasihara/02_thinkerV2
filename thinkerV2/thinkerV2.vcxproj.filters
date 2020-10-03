@@ -29,9 +29,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="externalThinker.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="think.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -42,6 +39,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\othello\common\externalThinkerMessages.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -152,7 +152,7 @@
     <ClInclude Include="..\..\othello\common\externalThinkerMessages.hpp" />
     <ClInclude Include="..\..\othello\common\messageGenerator.hpp" />
     <ClInclude Include="..\..\othello\common\messageParser.hpp" />
-    <ClInclude Include="externalThinker.hpp" />
+    <ClInclude Include="main.hpp" />
     <ClInclude Include="think.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
