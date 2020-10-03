@@ -6,7 +6,7 @@
 #include <iostream>
 #include <WinSock2.h>		// Need to include before including "Windows.h", because it seems to include older version "winsock.h"
 #include "externalThinkerMessages.hpp"
-#include "externalThinker.hpp"
+#include "main.hpp"
 #include "think.hpp"
 #include "messageGenerator.hpp"
 #include "messageParser.hpp"
@@ -115,7 +115,6 @@ int main(int argc, char **argv)
 void HandleInformationRequest(MessageParser messageParser, SOCKET sock, struct sockaddr_in from, int sockaddr_in_size)
 {
     char respMessage[MAX_MESSAGE_LENGTH];
-    int respMessageLength;
 
     // Generate Information Response message
     int messageLength;
@@ -145,8 +144,7 @@ void HandleInformationRequest(MessageParser messageParser, SOCKET sock, struct s
 //
 void HandleThinkRequest(MessageParser messageParser, SOCKET sock, struct sockaddr_in from, int sockaddr_in_size)
 {
-    int tlvHead = sizeof(MESSAGEHEADER), tlvTail;       // tlvHead: TLV head pos to be processed, tlvTail: TLV tail to be processed 
-    int valueLen;
+    int tlvHead = sizeof(MESSAGEHEADER);       // tlvHead: TLV head pos to be processed
     DISKCOLORS board[8][8];
     int turn = 0;
     int id = 0;

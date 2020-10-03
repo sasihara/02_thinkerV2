@@ -1,4 +1,5 @@
 #pragma once
+#include <WinSock2.h>
 #include "messageParser.hpp"
 
 void HandleInformationRequest(MessageParser messageParser, SOCKET sock, struct sockaddr_in from, int sockaddr_in_size);
