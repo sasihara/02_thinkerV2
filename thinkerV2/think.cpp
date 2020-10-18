@@ -106,6 +106,7 @@ int Thinker::findBestPlaceForCurrentPlayer(int lv)
 	DISKCOLORS tmpBoard[64];
 	char x = -1, y = -1;
 
+#pragma omp parallel for
 	for (i = 0; i < 60; i++) {
 		if ((flag = check(board, CheckPosX[i], CheckPosY[i], currentPlayer)) > 0) {
 			memcpy(tmpBoard, board, sizeof(tmpBoard));
