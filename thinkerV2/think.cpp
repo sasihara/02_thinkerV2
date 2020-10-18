@@ -101,25 +101,35 @@ int Thinker::CountDisk(DISKCOLORS color, DISKCOLORS _board[64])
 //
 int Thinker::findBestPlaceForCurrentPlayer(int lv)
 {
-	int i, eval = INT_MIN, score;
+	int i, eval = INT_MIN, score, resultScores[60];
 	int flag;
 	DISKCOLORS tmpBoard[64];
 	char x = -1, y = -1;
 
-#pragma omp parallel for
+	// Initialize resultScores
+	for (i = 0; i < 60; i++) resultScores[i] = INT_MIN;
+
+#pragma omp parallel for private(flag, tmpBoard)
 	for (i = 0; i < 60; i++) {
 		if ((flag = check(board, CheckPosX[i], CheckPosY[i], currentPlayer)) > 0) {
+			printf(".");
 			memcpy(tmpBoard, board, sizeof(tmpBoard));
 			turnDisk(tmpBoard, CheckPosX[i], CheckPosY[i], currentPlayer, flag);
-			score = MinLevel(lv - 1, false, eval, tmpBoard);
-			if (eval < score) {
-				x = CheckPosX[i];
-				y = CheckPosY[i];
-				eval = score;
-			}
+			resultScores[i] = MinLevel(lv - 1, false, eval, tmpBoard);
 		}
 	}
 
+	// Find the highest score and its position
+	eval = INT_MIN;
+	for (i = 0; i < 60; i++) {
+		if (eval < resultScores[i]) {
+			x = CheckPosX[i];
+			y = CheckPosY[i];
+			eval = resultScores[i];
+		}
+	}
+
+	printf("(%d,%d)\n", x, y);
 	return x * 10 + y;
 }
 
