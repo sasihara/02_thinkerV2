@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="externalThinker.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="think.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -27,11 +24,11 @@
     <ClCompile Include="..\..\othello\common\messageParser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="externalThinker.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="think.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -42,6 +39,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\othello\common\externalThinkerMessages.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

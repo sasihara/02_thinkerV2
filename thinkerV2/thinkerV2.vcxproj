@@ -117,6 +117,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>..\..\othello\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -133,6 +134,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>..\..\othello\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -145,14 +147,14 @@
   <ItemGroup>
     <ClCompile Include="..\..\othello\common\messageGenerator.cpp" />
     <ClCompile Include="..\..\othello\common\messageParser.cpp" />
-    <ClCompile Include="externalThinker.cpp" />
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="think.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\othello\common\externalThinkerMessages.hpp" />
     <ClInclude Include="..\..\othello\common\messageGenerator.hpp" />
     <ClInclude Include="..\..\othello\common\messageParser.hpp" />
-    <ClInclude Include="externalThinker.hpp" />
+    <ClInclude Include="main.hpp" />
     <ClInclude Include="think.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
