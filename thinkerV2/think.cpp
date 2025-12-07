@@ -7,6 +7,12 @@
 #include <limits.h>
 #include "externalThinkerMessages.hpp"
 #include "think.hpp"
+#include <vector>
+
+extern Logging logging;
+std::random_device rd;
+std::mt19937 generator(rd());
+std::uniform_real_distribution<> dist_real(0.0, 1.0);
 
 //
 //	Function Name: SetParams
@@ -42,20 +48,32 @@ int Thinker::think()
 	int ret;
 	int numSpaceLeft;
 
+	LOGOUT(LOGLEVEL_TRACE, "★==================== think() start. ====================★");
+
+#ifdef _DEBUG
+	logging.logprintf("*** 現在の盤面 ***\n");
+	logging.logprintf("プレイヤーの石の色: %s\n", currentPlayer == DISKCOLORS::COLOR_BLACK ? "●" : currentPlayer == DISKCOLORS::COLOR_WHITE ? "○" : "");
+	ret = logoutBoard(logging, board);
+#endif
+
 	// Decide thinking mode.
 	numSpaceLeft = CountDisk(DISKCOLORS::COLOR_NONE, board);
+	LOGOUT(LOGLEVEL_TRACE, "残り石数 = %d.", numSpaceLeft);
 
-	if (numSpaceLeft <= 12) {
+	if (numSpaceLeft <= NUM_FOR_GAMESTATE_END) {
 		depth = INT_MAX;
 		thinkerState = GAMESTATE::GAMESTATE_END;
+		LOGOUT(LOGLEVEL_TRACE, "完全読みモードへ移ります.");
 	}
-	if (numSpaceLeft <= 48) {
+	else if (numSpaceLeft <= NUM_FOR_GAMESTATE_MIDFIELD) {
 		depth = SEARCH_DEPTH;
 		thinkerState = GAMESTATE::GAMESTATE_MIDFIELD;
+		LOGOUT(LOGLEVEL_TRACE, "中盤モードで進めます.");
 	}
 	else {
 		depth = SEARCH_DEPTH;
 		thinkerState = GAMESTATE::GAMESTATE_EARLY_STAGE;
+		LOGOUT(LOGLEVEL_TRACE, "序盤モードで進めます.");
 	}
 
 	// Player detection
@@ -65,6 +83,7 @@ int Thinker::think()
 	// Start to think.
 	ret = findBestPlaceForCurrentPlayer(depth);
 
+	LOGOUT(LOGLEVEL_TRACE, "★==================== think() end. ====================★");
 	return ret;
 }
 
@@ -101,36 +120,111 @@ int Thinker::CountDisk(DISKCOLORS color, DISKCOLORS _board[64])
 //
 int Thinker::findBestPlaceForCurrentPlayer(int lv)
 {
-	int i, eval = INT_MIN, score, resultScores[60];
+	int i, eval = INT_MIN;
 	int flag;
 	DISKCOLORS tmpBoard[64];
 	char x = -1, y = -1;
+	std::vector<Score> scores;
+	int ret;
+	int minScore = INT_MAX;
 
-	// Initialize resultScores
-	for (i = 0; i < 60; i++) resultScores[i] = INT_MIN;
-
-#pragma omp parallel for private(flag, tmpBoard)
+	//#pragma omp parallel for private(flag, tmpBoard)
 	for (i = 0; i < 60; i++) {
 		if ((flag = check(board, CheckPosX[i], CheckPosY[i], currentPlayer)) > 0) {
-			printf(".");
 			memcpy(tmpBoard, board, sizeof(tmpBoard));
 			turnDisk(tmpBoard, CheckPosX[i], CheckPosY[i], currentPlayer, flag);
-			resultScores[i] = MinLevel(lv - 1, false, eval, tmpBoard);
+
+			//score = MinLevel(lv - 1, false, eval, tmpBoard);
+			//if (eval < score) {
+			//	x = CheckPosX[i];
+			//	y = CheckPosY[i];
+			//	eval = score;
+			//}
+
+			Score score;
+			score.x = CheckPosX[i];
+			score.y = CheckPosY[i];
+			score.n = MinLevel(lv - 1, false, eval, tmpBoard);
+			if (score.n < minScore) minScore = score.n;		// 後でスコアを最小値1に正規化するために最小スコアを取得
+
+			scores.push_back(score);
 		}
 	}
 
-	// Find the highest score and its position
-	eval = INT_MIN;
-	for (i = 0; i < 60; i++) {
-		if (eval < resultScores[i]) {
-			x = CheckPosX[i];
-			y = CheckPosY[i];
-			eval = resultScores[i];
+	if (temperature < DBL_EPSILON) {
+		int maxScore = -INT_MAX;
+		size_t maxIndex = 0;
+
+		for (size_t i = 0; i < scores.size(); i++) {
+			if (scores[i].n > maxScore) {
+				maxScore = scores[i].n;
+				maxIndex = i;
+			}
+		}
+
+		return scores[maxIndex].x * 10 + scores[maxIndex].y;
+	}
+	else {
+		int x, y;
+
+		// スコア値を最小1に正規化
+		for (size_t i = 0; i < scores.size(); i++) scores[i].n = scores[i].n - minScore + 1;
+
+		// スコアをボルツマン分布に変換
+		ret = bolzman(&scores, temperature);
+		if (ret < 0) {
+			return -1;
+		}
+
+		// ボルツマン分布にしたがってランダムに打ち手を選択
+		ret = ranom_choice(scores, &x, &y);
+
+		return x * 10 + y;
+	}
+}
+
+int Thinker::bolzman(std::vector<Score>* scores, Temperature temperature)
+{
+	double sum = 0.0;
+
+	//xs = [x * *(1 / temperature) for x in xs]
+	for (size_t i = 0; i < scores->size(); i++) {
+		scores->at(i).probability = pow((double)scores->at(i).n, 1.0 / temperature);
+
+		sum += scores->at(i).probability;
+	}
+
+	//return[x / sum(xs) for x in xs]
+	for (size_t i = 0; i < scores->size(); i++) {
+		scores->at(i).probability = scores->at(i).probability / sum;
+	}
+
+	return 0;
+}
+
+int Thinker::ranom_choice(std::vector<Score> scores, int* x, int* y)
+{
+	// 0～1までの乱数を生成する
+	double randomValue = (double)dist_real(generator);
+	LOGOUT(LOGLEVEL_TRACE, "乱数値 = %.6f", randomValue);
+
+	// 確率分布の値を先頭から加算し乱数値を超えた手前の値を選択する
+	double sum = 0.0;
+
+	for (size_t i = 0; i < scores.size(); i++) {
+		sum += scores[i].probability;
+
+		// 合計値が乱数値以上となった場合はその値を選択
+		// 確率分布の合計値は必ず最終的に乱数値の最大値の1.0となるので、必ず以下のif文が実行される
+		if (sum >= randomValue - DBL_EPSILON) {
+			*x = scores[i].x;
+			*y = scores[i].y;
+			return 0;
 		}
 	}
 
-	printf("(%d,%d)\n", x, y);
-	return x * 10 + y;
+	// 確率分布の合計値が1.0未満で本来はあり得ない。この場合はエラーとして返す。
+	return -1;
 }
 
 //
@@ -220,18 +314,40 @@ int Thinker::MinLevel(int lv, bool f, int alpha, DISKCOLORS _board[64])
 //
 int Thinker::evcal(DISKCOLORS board[64])
 {
-	int i, c = 0;
+	size_t i;
+	int c = 0;
 	int result[64];
+	int ret;
+
+	LOGOUT(LOGLEVEL_TRACE, "evcal() start.");
+
+#ifdef _DEBUG
+	logging.logprintf("プレイヤーの石の色: %s\n", currentPlayer == DISKCOLORS::COLOR_BLACK ? "●" : currentPlayer == DISKCOLORS::COLOR_WHITE ? "○" : "");
+	ret = logoutBoard(logging, board);
+#endif
 
 	if (thinkerState == GAMESTATE::GAMESTATE_END) {
-		for (i = 0; i < 60; i++) {
-			if (board[CheckPosX[i] * 8 + CheckPosY[i]] == currentPlayer) c++;
-			else if (board[CheckPosX[i] * 8 + CheckPosY[i]] == opponent) c--;
+		//for (i = 0; i < 60; i++) {
+		//	if (board[CheckPosX[i] * 8 + CheckPosY[i]] == currentPlayer) c++;
+		//	else if (board[CheckPosX[i] * 8 + CheckPosY[i]] == opponent) c--;
+		//}
+		for (i = 0; i < 64; i++) {
+			if (board[i] == currentPlayer) c++;
+			else if (board[i] == opponent) c--;
 		}
+
+		LOGOUT(LOGLEVEL_TRACE, "完全読みモードでの評価値 = %d", c);
+		LOGOUT(LOGLEVEL_TRACE, "evcal() end.");
+
 		return c;
 	}
 	else {
 		analyzeDiskCharacter(board, result);
+#ifdef _DEBUG
+		logging.logprintf("***** 分析結果 *****\n");
+		logoutAnalysisResult(logging, result);
+#endif
+
 		for (i = 0; i < 64; i++) {
 			if (board[i] == currentPlayer) {
 				if ((result[i] & (DISKCHARFLAG_EXISTENCE | DISKCHARFLAG_CHANGABLE)) == DISKCHARFLAG_EXISTENCE)
@@ -244,6 +360,10 @@ int Thinker::evcal(DISKCOLORS board[64])
 				else c -= weight[(int)thinkerState][i / 8][i % 8];
 			}
 		}
+
+		LOGOUT(LOGLEVEL_TRACE, "序盤：中盤モードでの評価値 = %d", c);
+		LOGOUT(LOGLEVEL_TRACE, "evcal() end.");
+
 		return c;
 	}
 }
@@ -460,7 +580,7 @@ bool Thinker::isFixedOneDir(int x, int y, DISKCOLORS board[64], int dx, int dy)
 	cx = x + dx; cy = y + dy;
 	for (;; cx += dx, cy += dy) {
 		// If player's color continues to the edge, this disk will never change to the opponent
-		if (cx < 0 || cx >= 8 || cy < 0 || cy >= 8) 
+		if (cx < 0 || cx >= 8 || cy < 0 || cy >= 8)
 			return true;
 		// if empty square exists before reaching to the edge, 
 		else if (board[cx * 8 + cy] == DISKCOLORS::COLOR_NONE || board[cx * 8 + cy] == opponentColorInThisCheck)
@@ -482,11 +602,11 @@ bool Thinker::isFixedOneDir(int x, int y, DISKCOLORS board[64], int dx, int dy)
 	// which the checking disk will never turn to the opponent or not.
 	// At first, check the right side.
 	int patternCode = 0;
-	cx = x + dx; 
+	cx = x + dx;
 	cy = y + dy;
 
 	// Convert the disks for the right side into its code
-	for (; 0 <= cx && cx < 8 && 0 <= cy && cy < 8 ; cx += dx, cy += dy) {
+	for (; 0 <= cx && cx < 8 && 0 <= cy && cy < 8; cx += dx, cy += dy) {
 		int i = cx * 8 + cy;
 		patternCode = patternCode << 2;
 		if (board[i] == DISKCOLORS::COLOR_NONE) {
@@ -502,7 +622,7 @@ bool Thinker::isFixedOneDir(int x, int y, DISKCOLORS board[64], int dx, int dy)
 
 	// Check if the pattern exists in the patterns to fix the checking disk.
 	if (isPatternToFix(patternCode) == false) return false;
-	
+
 	// Check the left side.
 	patternCode = 0;
 	cx = x - dx;
@@ -585,9 +705,53 @@ bool Thinker::isPatternToFix(int code)
 		4091,4094,4095,-1
 	};
 
-	for (int i = 0; patternsToFix[i] >= 0 ; i++) {
+	for (int i = 0; patternsToFix[i] >= 0; i++) {
 		if (code == patternsToFix[i]) return true;
 	}
 
 	return false;
+}
+
+int logoutBoard(Logging logging, DISKCOLORS* _board)
+{
+	for (int y = 0; y < 8; y++) {
+		for (int x = 0; x < 8; x++) {
+			switch (_board[x * 8 + y]) {
+			case DISKCOLORS::COLOR_BLACK:
+				logging.logprintf(LOGLEVEL_TRACE, "●");
+				break;
+			case DISKCOLORS::COLOR_WHITE:
+				logging.logprintf(LOGLEVEL_TRACE, "○");
+				break;
+			default:
+				logging.logprintf(LOGLEVEL_TRACE, "・");
+				break;
+			}
+		}
+		logging.logprintf(LOGLEVEL_TRACE, "\n");
+	}
+
+	return 0;
+}
+
+int logoutAnalysisResult(Logging logging, int* _result)
+{
+	for (int y = 0; y < 8; y++) {
+		for (int x = 0; x < 8; x++) {
+			switch (_result[x * 8 + y] & (DISKCHARFLAG_EXISTENCE | DISKCHARFLAG_CHANGABLE)) {
+			case DISKCHARFLAG_EXISTENCE:
+				logging.logprintf(LOGLEVEL_TRACE, "◎");
+				break;
+			case DISKCHARFLAG_EXISTENCE | DISKCHARFLAG_CHANGABLE:
+				logging.logprintf(LOGLEVEL_TRACE, "○");
+				break;
+			default:
+				logging.logprintf(LOGLEVEL_TRACE, "・");
+				break;
+			}
+		}
+		logging.logprintf(LOGLEVEL_TRACE, "\n");
+	}
+
+	return 0;
 }

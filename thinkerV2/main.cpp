@@ -10,8 +10,14 @@
 #include "think.hpp"
 #include "messageGenerator.hpp"
 #include "messageParser.hpp"
+#include "logging.h"
+#include "history.hpp"
 
 #pragma warning(disable:4996 6031 6305)
+
+// Global
+Logging logging;
+History history;
 
 //
 //	Function Name: main
